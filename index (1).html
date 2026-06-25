@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Trip Tracking</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#274a3d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Trips">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root{
+    --ink:#1b1a17; --paper:#f5f2ea; --card:#fffdf8; --line:#ddd6c8;
+    --road:#274a3d; --road-dk:#1c352b; --amber:#d98324; --amber-dk:#b96d18;
+    --muted:#827b6d; --good:#2b6b4f; --bad:#a23a1c;
+    --shadow:0 1px 3px rgba(27,26,23,.07),0 10px 28px rgba(27,26,23,.07);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--paper);color:var(--ink);line-height:1.45}
+  .wrap{max-width:540px;margin:0 auto;padding:0 15px 96px}
+  header{background:var(--road);color:#f5f2ea;position:sticky;top:0;z-index:30;box-shadow:0 2px 12px rgba(27,26,23,.14)}
+  .hbar{max-width:540px;margin:0 auto;padding:15px;display:flex;align-items:center;gap:11px;min-height:58px}
+  .dot{width:34px;height:34px;border-radius:9px;background:repeating-linear-gradient(45deg,var(--amber) 0 7px,var(--amber-dk) 7px 14px);flex:0 0 auto}
+  .htitle{font-size:18px;font-weight:700;letter-spacing:.3px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hsub{font-size:11.5px;opacity:.78;margin:1px 0 0;text-transform:uppercase;letter-spacing:.6px}
+  .back{background:rgba(255,255,255,.14);border:none;color:#fff;font-size:14px;font-weight:600;padding:8px 13px;border-radius:9px;cursor:pointer;flex:0 0 auto}
+  .back:active{transform:scale(.97)}
+  .hgrow{flex:1;min-width:0}
+  .screen{display:none;animation:fade .18s ease}
+  .screen.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
+  .sectlbl{font-size:12px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);margin:20px 3px 10px}
+  .sectlbl.tight{margin-top:14px}
+
+  .folder{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:15px 16px;margin-bottom:11px;cursor:pointer;display:flex;align-items:center;gap:13px}
+  .folder:active{transform:scale(.99);background:#fbf8f1}
+  .ftab{width:42px;height:36px;flex:0 0 auto;border-radius:7px 9px 9px 7px;background:var(--road);position:relative;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px}
+  .ftab:before{content:"";position:absolute;top:-5px;left:5px;width:18px;height:7px;background:inherit;border-radius:4px 4px 0 0}
+  .ftab.amber{background:var(--amber);color:#2a1c08}
+  .ftab.open{background:#cdbf9f;color:#5a4f33}
+  .ftab.red{background:var(--bad);color:#fff}
+  .fmeta{flex:1;min-width:0}
+  .fname{font-weight:700;font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fsub{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .fchev{color:var(--line);font-size:22px;flex:0 0 auto}
+  .fage{font-size:11px;color:var(--amber-dk);font-weight:600}
+  .pill-status{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.3px}
+  .ps-open{background:#f6ecdb;color:var(--amber-dk)} .ps-done{background:#e7efe9;color:var(--road)}
+  .ps-und{background:#fbe9e4;color:var(--bad)}
+
+  .empty{text-align:center;color:var(--muted);padding:46px 20px}
+  .empty .big{font-size:40px;margin-bottom:10px}
+  .empty .t{font-weight:700;color:var(--ink);font-size:15px}
+  .empty .s{font-size:13px;margin-top:5px}
+
+  .fab{position:fixed;bottom:22px;right:max(18px,calc(50% - 270px + 18px));width:60px;height:60px;border-radius:50%;background:var(--amber);color:#2a1c08;border:none;font-size:32px;box-shadow:0 6px 20px rgba(217,131,36,.45);cursor:pointer;z-index:25;display:flex;align-items:center;justify-content:center;line-height:1}
+  .fab:active{transform:scale(.93)}
+  .fab-lbl{position:fixed;bottom:30px;right:max(86px,calc(50% - 270px + 86px));background:var(--ink);color:#fff;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:18px;z-index:25;box-shadow:0 3px 10px rgba(0,0,0,.2);pointer-events:none}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;margin-top:12px}
+  .row{display:flex;align-items:stretch;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:none}
+  .row label{flex:0 0 112px;padding:11px 12px;font-size:12px;font-weight:600;color:var(--muted);background:#faf7f0;display:flex;align-items:center;border-right:1px solid var(--line)}
+  .row input{flex:1;border:none;padding:11px 12px;font-size:15px;font-family:inherit;color:var(--ink);background:transparent;min-width:0}
+  .row input:focus{outline:none;background:#fffdf4}
+  .row input:disabled{color:#9a9384}
+  .row.auto input{font-weight:600}
+  .tag{font-size:9px;font-weight:700;padding:2px 6px;border-radius:5px;margin:auto 10px auto 0;letter-spacing:.4px;flex:0 0 auto}
+  .tag.scan{color:var(--road);background:#e7efe9}
+  .tag.autn{color:var(--amber-dk);background:#f6ecdb}
+
+  .slots{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:6px}
+  .slot{background:var(--card);border:1.5px dashed var(--line);border-radius:13px;padding:14px 8px;text-align:center;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;position:relative;overflow:hidden}
+  .slot.filled{border-style:solid;border-color:var(--road)}
+  .slot .ico{font-size:24px}
+  .slot .t{font-weight:700;font-size:13px}
+  .slot .s{font-size:11px;color:var(--muted)}
+  .slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .slot .badge{position:absolute;top:7px;right:7px;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;z-index:2}
+  .slotbtns{position:absolute;inset:0;display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:flex-end;padding-bottom:10px;z-index:3}
+  .minibtn{font-size:11px;font-weight:700;padding:6px 12px;border-radius:18px;border:none;cursor:pointer;background:rgba(255,255,255,.95);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.15)}
+  .minibtn.cam{background:var(--road);color:#fff}
+
+  .proofgrid{display:grid !important;grid-template-columns:repeat(3,1fr) !important;gap:9px;margin-top:6px}
+  .proof{background:var(--card);border:1.5px solid var(--line);border-radius:12px;overflow:hidden;position:relative;height:96px;min-width:0;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer}
+  .proof .plab{font-size:11px;font-weight:700}
+  .proof .pico{font-size:18px}
+  .proof .preq{font-size:8.5px;color:var(--bad);font-weight:700}
+  .proof.done{border-color:var(--good)}
+  .proof img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .proof .pcheck{position:absolute;top:6px;right:6px;background:var(--good);color:#fff;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;z-index:2}
+  .proof .ptime{position:absolute;bottom:0;left:0;right:0;background:rgba(27,53,43,.82);color:#fff;font-size:9px;padding:3px 5px;z-index:2;line-height:1.3;font-variant-numeric:tabular-nums}
+
+  .out{background:var(--road-dk);color:#eef2ee;border-radius:13px;padding:13px 14px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;white-space:pre-wrap;line-height:1.7;word-break:break-word;margin-top:14px}
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}
+  .btn{border:none;border-radius:12px;padding:13px;font-size:14.5px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px}
+  .btn:active{transform:scale(.98)}
+  .btn-copy{background:var(--ink);color:#fff} .btn-copy.done{background:var(--good)}
+  .btn-sms{background:var(--amber);color:#2a1c08}
+  .btn-exp{background:var(--road);color:#fff}
+  .btn-del{background:transparent;color:var(--bad);border:1.5px solid #e3c0b4;font-size:13px;padding:11px}
+  .full{grid-column:1/-1}
+  .note{font-size:11.5px;color:var(--muted);text-align:center;margin-top:9px}
+  .err{background:#fbe9e4;border:1px solid #e8b9a8;color:var(--bad);padding:10px 12px;border-radius:10px;font-size:12.5px;margin-top:10px}
+  /* undelivered + finish */
+  .undbar{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:14px;cursor:pointer}
+  .undbar .box{width:22px;height:22px;border-radius:6px;border:2px solid var(--line);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800}
+  .undbar.on .box{background:var(--bad);border-color:var(--bad);color:#fff}
+  .undbar .ut{font-size:13.5px;font-weight:700}
+  .undbar .us{font-size:11.5px;color:var(--muted);margin-top:1px}
+  .remarks{margin-top:10px}
+  .remarks textarea{width:100%;border:1.5px solid #e3c0b4;border-radius:11px;padding:11px 12px;font-size:14px;font-family:inherit;min-height:64px;resize:vertical;background:#fffaf8}
+  .remarks textarea:focus{outline:none;border-color:var(--bad)}
+  .btn-finish{background:var(--good);color:#fff;font-size:16px;padding:15px}
+  .btn-finish.und{background:var(--bad)}
+  .btn-finish:disabled{background:#c9c2b3;color:#fff}
+  .finished-banner{background:#e7efe9;border:1px solid #b9d4c4;color:var(--road);border-radius:12px;padding:12px 14px;margin-top:14px;font-size:13px;display:flex;align-items:center;gap:9px}
+  .finished-banner.und{background:#fbe9e4;border-color:#e8b9a8;color:var(--bad)}
+  .lockedit{background:transparent;border:1.5px solid var(--line);color:var(--muted);border-radius:11px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;width:100%;margin-top:10px;font-family:inherit}
+  .sendstat{text-align:center;font-size:12px;margin-top:9px;font-weight:600}
+  .sendstat.ok{color:var(--good)} .sendstat.bad{color:var(--bad)} .sendstat.busy{color:var(--amber-dk)}
+  input[type=file]{display:none}
+
+  .modal{position:fixed;inset:0;background:rgba(27,26,23,.55);z-index:50;display:none;align-items:center;justify-content:center;padding:24px}
+  .modal.on{display:flex}
+  .mbox{background:var(--card);border-radius:16px;padding:22px 20px;width:100%;max-width:340px;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+  .mbox h3{margin:0 0 5px;font-size:17px}
+  .mbox p{margin:0 0 14px;font-size:13px;color:var(--muted)}
+  .mbox input{width:100%;border:1.5px solid var(--line);border-radius:11px;padding:13px;font-size:16px;font-family:inherit;margin-bottom:14px}
+  .mbox input:focus{outline:none;border-color:var(--road)}
+  .mbtns{display:flex;gap:9px}
+  .mbtns button{flex:1;border:none;border-radius:11px;padding:12px;font-size:14.5px;font-weight:700;cursor:pointer;font-family:inherit}
+  .mcancel{background:#efeadf;color:var(--ink)} .mok{background:var(--amber);color:#2a1c08}
+</style>
+</head>
+<body>
+<header><div class="hbar" id="hbar"><div class="dot"></div><div class="hgrow"><h1 class="htitle">Trip Tracking</h1><div class="hsub">Distriphil · L300</div></div></div></header>
+
+<!-- HOME: trip folders -->
+<div class="screen on" id="scHome">
+  <div class="wrap">
+    <div class="sectlbl">This week's trips</div>
+    <div id="homeList"></div>
+    <div class="empty" id="homeEmpty"><div class="big">📁</div><div class="t">No trips yet</div><div class="s">Tap + to add your first Trip Ticket.</div></div>
+    <div class="note" id="homeNote"></div>
+  </div>
+  <div class="fab-lbl" id="fabLblHome">New trip</div>
+  <button class="fab" id="fabHome">+</button>
+</div>
+
+<!-- TRIP: customer folders -->
+<div class="screen" id="scTrip">
+  <div class="wrap">
+    <div id="custInProg"></div>
+    <div id="custDone"></div>
+    <div class="empty" id="custEmpty"><div class="big">🚚</div><div class="t">No customers yet</div><div class="s">Tap + to add your first stop.</div></div>
+  </div>
+  <div class="fab-lbl" id="fabLblTrip">New customer</div>
+  <button class="fab" id="fabTrip">+</button>
+</div>
+
+<!-- CUSTOMER: detail -->
+<div class="screen" id="scCust">
+  <div class="wrap" id="custDetail"></div>
+</div>
+
+<!-- modal -->
+<div class="modal" id="modal"><div class="mbox">
+  <h3>New Trip Ticket</h3><p>Type the trip ticket number.</p>
+  <input id="mInput" placeholder="BEN-26-0001" autocomplete="off">
+  <div class="mbtns"><button class="mcancel" id="mCancel">Cancel</button><button class="mok" id="mOk">Add</button></div>
+</div></div>
+
+<input type="file" id="fileInput" accept="image/*">
+
+<script>
+// ===== CONFIG — set these after you create the Google setup =====
+const SHEET_URL = "PASTE_YOUR_APPS_SCRIPT_URL_HERE"; // from Apps Script "Deploy > Web app"
+let ADMIN_PIN = (()=>{try{return localStorage.getItem('tt_pin')||"1234";}catch(e){return "1234";}})(); // owner sets this; drivers don't get it
+function setAdminPin(p){ADMIN_PIN=p;try{localStorage.setItem('tt_pin',p);}catch(e){}}
+// ================================================================
+const DB={trips:{}};
+// Persistent storage: real localStorage on a phone/hosted page; falls back to memory if blocked (e.g. preview sandbox)
+let MEM={};
+const canLS=(()=>{try{localStorage.setItem('_t','1');localStorage.removeItem('_t');return true;}catch(e){return false;}})();
+const store={
+  load(){try{const raw=canLS?localStorage.getItem('tt_data'):MEM.tt_data;return JSON.parse(raw||'null')||{trips:{}};}catch(e){return{trips:{}};}},
+  save(){try{const s=JSON.stringify(DB);if(canLS)localStorage.setItem('tt_data',s);else MEM.tt_data=s;}catch(e){MEM.tt_data=JSON.stringify(DB);}}
+};
+const $=id=>document.getElementById(id);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const WEEK=7*24*60*60*1000;
+function fmtTime(ts){const d=new Date(ts);let h=d.getHours();const m=String(d.getMinutes()).padStart(2,'0');const ap=h>=12?'PM':'AM';h=h%12||12;return `${h}:${m} ${ap}`;}
+function fmtDate(ts){const d=new Date(ts);const p=n=>String(n).padStart(2,'0');return `${p(d.getMonth()+1)}/${p(d.getDate())}/${String(d.getFullYear()).slice(2)}`;}
+function ageLabel(ts){const days=Math.floor((Date.now()-ts)/(24*60*60*1000));if(days<=0)return'Today';if(days===1)return'Yesterday';return `${days} days ago`;}
+function purgeOld(){let c=false;for(const id in DB.trips){if(Date.now()-DB.trips[id].created>WEEK){delete DB.trips[id];c=true;}}if(c)store.save();}
+
+// finished = driver tapped Finish (either delivered, or marked undelivered)
+function isDone(c){return !!c.finished;}
+function doneCustomers(t){return t.customers.filter(isDone).sort((a,b)=>(a.finishedAt||0)-(b.finishedAt||0));}
+function openCustomers(t){return t.customers.filter(c=>!isDone(c));} // keep insertion order
+// sequence number only for DELIVERED finished stops
+function seqOf(t,id){const delivered=doneCustomers(t).filter(c=>!c.undelivered);const i=delivered.findIndex(c=>c.id===id);return i>=0?i+1:null;}
+
+function getLocation(){return new Promise(res=>{if(!navigator.geolocation)return res(null);navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lng:p.coords.longitude}),()=>res(null),{timeout:6000,maximumAge:60000});});}
+function loadImg(file){return new Promise((res,rej)=>{const img=new Image();const url=URL.createObjectURL(file);const to=setTimeout(()=>{URL.revokeObjectURL(url);rej(new Error('timeout'))},15000);img.onload=()=>{clearTimeout(to);URL.revokeObjectURL(url);res(img)};img.onerror=()=>{clearTimeout(to);URL.revokeObjectURL(url);rej(new Error('decode'))};img.src=url;});}
+async function processPhoto(file,stamp){
+  const ts=Date.now();const loc=stamp?await getLocation():null;const img=await loadImg(file);
+  let w=img.width,h=img.height;const MAX=1600;
+  if(Math.max(w,h)>MAX){const r=MAX/Math.max(w,h);w=Math.round(w*r);h=Math.round(h*r);}
+  const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d');ctx.drawImage(img,0,0,w,h);
+  if(stamp){
+    const pad=Math.round(w*0.025),fs=Math.max(13,Math.round(w*0.032));
+    const l1=`${fmtDate(ts)}  ${fmtTime(ts)}`;const l2=loc?`${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`:'location off';
+    ctx.font=`700 ${fs}px -apple-system,sans-serif`;
+    const bw=Math.max(ctx.measureText(l1).width,ctx.measureText(l2).width)+pad*2;const bh=fs*2+pad*1.6;
+    ctx.fillStyle='rgba(27,53,43,.82)';ctx.fillRect(0,h-bh,bw+pad,bh);
+    ctx.fillStyle='#fff';ctx.textBaseline='top';ctx.fillText(l1,pad,h-bh+pad*0.5);
+    ctx.font=`600 ${Math.round(fs*0.82)}px -apple-system,sans-serif`;ctx.fillText(l2,pad,h-bh+pad*0.5+fs*1.05);
+  }
+  let q=0.85,dataUrl=c.toDataURL('image/jpeg',q);
+  while(dataUrl.length*0.75>2*1024*1024&&q>0.4){q-=0.1;dataUrl=c.toDataURL('image/jpeg',q);}
+  return {dataUrl,ts,loc};
+}
+async function aiScan(dataUrl,kind){
+  const b64=dataUrl.split(',')[1];
+  const prompt=kind==='si'
+    ?`Distriphil SALES INVOICE. Reply ONLY JSON, no markdown: {"si":"number after INV NO. top right","amt":"TOTAL NET AMOUNT DUE, digits with decimal e.g. 48080.48","cust":"name under SOLD TO"}. Unreadable = "".`
+    :`Distriphil DELIVERY RECEIPT. Reply ONLY JSON, no markdown: {"doc":"number after Doc. Num. top right","phone":"phone in SPECIAL INSTRUCTIONS, digits only"}. Unreadable = "".`;
+  const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1000,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:prompt}]}]})});
+  const data=await resp.json();
+  const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('').replace(/```json|```/g,'').trim();
+  return JSON.parse(txt);
+}
+
+let curTrip=null,curCust=null;
+function show(s){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));$(s).classList.add('on');window.scrollTo(0,0);}
+
+function goHome(){curTrip=null;curCust=null;$('hbar').innerHTML=`<div class="dot"></div><div class="hgrow"><h1 class="htitle">Trip Tracking</h1><div class="hsub">Distriphil · L300</div></div>`;show('scHome');renderHome();}
+
+function openTrip(id){curTrip=id;curCust=null;const t=DB.trips[id];
+  $('hbar').innerHTML=`<button class="back" id="bk">‹ Trips</button><div class="hgrow"><h1 class="htitle">${t.number}</h1><div class="hsub" id="hsubT"></div></div>`;
+  $('bk').onclick=goHome;show('scTrip');renderTrip();}
+
+function openCust(id){curCust=id;const t=DB.trips[curTrip];const c=t.customers.find(x=>x.id===id);
+  const nm=(c.fields.cust||'').split(',')[0].trim()||'New customer';
+  $('hbar').innerHTML=`<button class="back" id="bk">‹ ${t.number}</button><div class="hgrow"><h1 class="htitle">${nm}</h1><div class="hsub">${c.fields.si?'Invoice '+c.fields.si:'no invoice yet'}</div></div>`;
+  $('bk').onclick=()=>openTrip(curTrip);show('scCust');renderCustDetail();}
+
+function renderHome(){
+  purgeOld();
+  const ids=Object.keys(DB.trips).sort((a,b)=>DB.trips[b].created-DB.trips[a].created);
+  const list=$('homeList');
+  if(!ids.length){$('homeEmpty').style.display='block';list.innerHTML='';$('homeNote').textContent='';return;}
+  $('homeEmpty').style.display='none';
+  list.innerHTML=ids.map(id=>{const t=DB.trips[id];const n=t.customers.length;const done=doneCustomers(t).length;
+    return `<div class="folder" onclick="openTrip('${id}')"><div class="ftab"></div><div class="fmeta"><div class="fname">${t.number}</div><div class="fsub">${done}/${n} done · <span class="fage">${ageLabel(t.created)}</span></div></div><div class="fchev">›</div></div>`;}).join('');
+  $('homeNote').textContent='Trips auto-clear after 7 days.';
+}
+
+function custFolderHTML(c){
+  const t=DB.trips[curTrip];
+  const name=(c.fields.cust||'').split(',')[0].trim()||'New customer';
+  const inv=c.fields.si?('S.I '+c.fields.si):'no invoice';
+  const dr=c.fields.doc?(' · D.R '+c.fields.doc):'';
+  const done=isDone(c);const seq=seqOf(t,c.id);
+  let tabClass,tabInner,status;
+  if(done&&c.undelivered){
+    tabClass='red';tabInner='✕';
+    status=`<span class="pill-status ps-und">undelivered</span>`;
+  }else if(done){
+    tabClass='';tabInner=seq;
+    status=`<span class="pill-status ps-done">✓ done ${c.proof.dep?fmtTime(c.proof.dep.ts):''}</span>`;
+  }else{
+    tabClass='amber';tabInner='•';
+    status=`<span class="pill-status ps-open">in progress</span>`;
+  }
+  return `<div class="folder" onclick="openCust('${c.id}')">
+    <div class="ftab ${tabClass}">${tabInner}</div>
+    <div class="fmeta"><div class="fname">${name}</div><div class="fsub">${inv}${dr} · ${status}</div></div>
+    <div class="fchev">›</div></div>`;
+}
+function renderTrip(){
+  const t=DB.trips[curTrip];
+  const open=openCustomers(t),done=doneCustomers(t);
+  if(!t.customers.length){$('custEmpty').style.display='block';$('custInProg').innerHTML='';$('custDone').innerHTML='';return;}
+  $('custEmpty').style.display='none';
+  $('custInProg').innerHTML=(open.length?`<div class="sectlbl">In progress</div>`:'')+open.map(custFolderHTML).join('');
+  $('custDone').innerHTML=(done.length?`<div class="sectlbl tight">Finished</div>`:'')+done.map(custFolderHTML).join('');
+}
+
+function addCust(){const t=DB.trips[curTrip];const c={id:uid(),created:Date.now(),si:{},dr:{},fields:{},proof:{}};t.customers.push(c);store.save();openCust(c.id);}
+
+function renderCustDetail(){
+  const t=DB.trips[curTrip];const c=t.customers.find(x=>x.id===curCust);if(!c)return;
+  const f=c.fields;const seq=seqOf(t,c.id);
+  const locked = c.finished && !c.editUnlocked; // finished + not admin-unlocked = read only
+  const dis = locked?'disabled':'';
+  const allPhotos = c.proof.arr&&c.proof.rec&&c.proof.dep;
+
+  // finished banner (top)
+  let banner='';
+  if(c.finished){
+    banner = c.undelivered
+      ? `<div class="finished-banner und">✕ Marked undelivered${c.sentAt?' · sent to sheet':''}. ${locked?'Tap below to edit (admin).':''}</div>`
+      : `<div class="finished-banner">✓ Delivered — Drop ${seq||''}${c.sentAt?' · sent to sheet':''}. ${locked?'Tap below to edit (admin).':''}</div>`;
+  }
+
+  $('custDetail').innerHTML=`
+    ${banner}
+    <div class="sectlbl">Scan the two papers</div>
+    <div class="slots">
+      <div class="slot ${c.si.img?'filled':''}">
+        ${c.si.img?`<img src="${c.si.img}"><span class="badge" style="background:${c.si.done?'var(--good)':'var(--amber)'}">${c.si.done?'read':'tap'}</span>`:`<div class="ico">🧾</div><div class="t">Sales Invoice</div><div class="s">S.I, Amount, Customer</div>`}
+        ${locked?'':`<div class="slotbtns"><button class="minibtn cam" onclick="pick('si',true)">📷 Camera</button><button class="minibtn" onclick="pick('si',false)">🖼️ Upload</button></div>`}
+      </div>
+      <div class="slot ${c.dr.img?'filled':''}">
+        ${c.dr.img?`<img src="${c.dr.img}"><span class="badge" style="background:${c.dr.done?'var(--good)':'var(--amber)'}">${c.dr.done?'read':'tap'}</span>`:`<div class="ico">📦</div><div class="t">Delivery Receipt</div><div class="s">Doc #, Phone</div>`}
+        ${locked?'':`<div class="slotbtns"><button class="minibtn cam" onclick="pick('dr',true)">📷 Camera</button><button class="minibtn" onclick="pick('dr',false)">🖼️ Upload</button></div>`}
+      </div>
+    </div>
+    <div id="scanErr"></div>
+    <div class="actions" style="margin-top:11px"><button class="btn btn-sms full" id="bSmsTop">💬 Text customer</button></div>
+    <div class="sectlbl tight">Details</div>
+    <div class="card">
+      <div class="row auto"><label>Phone</label><input id="i_phone" value="${f.phone||''}" placeholder="scan receipt" inputmode="tel" ${dis}><span class="tag scan">SCAN</span></div>
+      <div class="row"><label>Trip Ticket #</label><input value="${t.number}" disabled></div>
+      <div class="row"><label>Date</label><input id="i_date" value="${f.date||fmtDate(c.created)}" ${dis}></div>
+      <div class="row"><label>Drop #</label><input value="${c.undelivered?'— (undelivered)':(seq?seq+'  (by departure)':'— set on Finish')}" disabled><span class="tag autn">AUTO</span></div>
+      <div class="row auto"><label>S.I #</label><input id="i_si" value="${f.si||''}" placeholder="scan invoice" ${dis}><span class="tag scan">SCAN</span></div>
+      <div class="row auto"><label>Doc #</label><input id="i_doc" value="${f.doc||''}" placeholder="scan receipt" ${dis}><span class="tag scan">SCAN</span></div>
+      <div class="row auto"><label>Amount</label><input id="i_amt" value="${f.amt||''}" placeholder="scan invoice" ${dis}><span class="tag scan">SCAN</span></div>
+      <div class="row auto"><label>Customer</label><input id="i_cust" value="${f.cust||''}" placeholder="scan invoice" ${dis}><span class="tag scan">SCAN</span></div>
+    </div>
+    ${locked?'':`
+      <div class="undbar ${c.undelivered?'on':''}" id="undBar">
+        <div class="box">${c.undelivered?'✕':''}</div>
+        <div><div class="ut">Mark undelivered</div><div class="us">Customer wasn't reached or refused</div></div>
+      </div>
+      ${c.undelivered?`<div class="remarks"><textarea id="i_remarks" placeholder="Remarks: why was it undelivered?">${c.remarks||''}</textarea></div>`:''}
+    `}
+    <div class="sectlbl tight">Proof photos${c.undelivered?'':' — all 3 required'}</div>
+    <div class="proofgrid">
+      ${['arr','rec','dep'].map(k=>{const L={arr:'Arrival',rec:'Received',dep:'Departure'};const pr=c.proof[k];
+        const inner = pr
+          ? `<img src="${pr.img}"><div class="pcheck">✓</div><div class="ptime">${fmtTime(pr.ts)}${pr.loc?'<br>📍 '+pr.loc.lat.toFixed(4)+','+pr.loc.lng.toFixed(4):'<br>no GPS'}</div>`
+          : `<div class="pico">📷</div><div class="plab">${L[k]}</div>${c.undelivered?'':'<div class="preq">REQUIRED</div>'}`;
+        return `<div class="proof ${pr?'done':''}" ${locked?'':`onclick="pickProof('${k}')"`}>${inner}</div>`;}).join('')}
+    </div>
+    <div class="out" id="out"></div>
+    <div class="actions"><button class="btn btn-copy full" id="bCopy">📋 Copy text</button></div>
+
+    ${locked ? `
+      <button class="lockedit" id="bUnlock">🔒 Edit finished stop (admin PIN)</button>
+    ` : `
+      <div class="actions" style="margin-top:12px"><button class="btn btn-finish ${c.undelivered?'und':''} full" id="bFinish">${c.finished?'Update & re-send':(c.undelivered?'Finish — Undelivered ✕':'Finish & send to sheet')}</button></div>
+      <div class="sendstat" id="sendStat"></div>
+      <div class="actions"><button class="btn btn-del full" id="bDel">Delete customer</button></div>
+    `}
+  `;
+
+  if(!locked){
+    ['date','si','doc','amt','cust','phone'].forEach(k=>{const el=$('i_'+k);if(el)el.addEventListener('input',()=>{c.fields[k]=el.value;store.save();buildOut(c);if(k==='cust'||k==='si'||k==='doc')updHeader(c);});});
+    const rm=$('i_remarks');if(rm)rm.addEventListener('input',()=>{c.remarks=rm.value;store.save();});
+    const ub=$('undBar');if(ub)ub.onclick=()=>{c.undelivered=!c.undelivered;store.save();renderCustDetail();};
+    const bf=$('bFinish');if(bf)bf.onclick=()=>finishStop(c);
+    const bd=$('bDel');if(bd)bd.onclick=()=>delCust(c);
+  }else{
+    const bu=$('bUnlock');if(bu)bu.onclick=()=>{const pin=prompt('Enter admin PIN to edit this finished stop:');if(pin===null)return;if(pin===ADMIN_PIN){c.editUnlocked=true;renderCustDetail();}else{alert('Wrong PIN. Editing stays locked.');}};
+  }
+  $('bCopy').onclick=()=>copyOut(c);
+  const st=$('bSmsTop');if(st)st.onclick=()=>smsOut(c);
+  buildOut(c);
+}
+
+// ===== FINISH: validate, mark finished, send to sheet =====
+async function finishStop(c){
+  const t=DB.trips[curTrip];
+  if(!c.undelivered){
+    const miss=['arr','rec','dep'].filter(k=>!c.proof[k]);
+    if(miss.length){const e=$('scanErr');if(e)e.innerHTML=`<div class="err">Need all 3 proof photos before finishing, or tick “Mark undelivered”.</div>`;window.scrollTo(0,0);return;}
+  }else{
+    if(!(c.remarks||'').trim()){const rm=$('i_remarks');if(rm){rm.focus();rm.style.borderColor='var(--bad)';}return;}
+  }
+  const nm=(c.fields.cust||'this customer').split(',')[0].trim();
+  const msg=c.undelivered
+    ? `Finish "${nm}" as UNDELIVERED?\n\nIt will be sent to the sheet and locked from editing (admin PIN to change).`
+    : `Finish "${nm}" as delivered?\n\nIt will be sent to the sheet and locked from editing (admin PIN to change).`;
+  if(!confirm(msg)) return;
+  c.finished=true;c.editUnlocked=false;c.finishedAt=c.finishedAt||Date.now();
+  store.save();
+  // send to sheet
+  await sendToSheet(c);
+  openTrip(curTrip); // back to folder list so they see it move down
+}
+
+async function sendToSheet(c){
+  const t=DB.trips[curTrip];const f=c.fields;const seq=seqOf(t,c.id);
+  const stat=$('sendStat');
+  if(!SHEET_URL||SHEET_URL.startsWith('PASTE_')){if(stat){stat.className='sendstat bad';stat.textContent='Finished locally. (Google Sheet not connected yet.)';}return;}
+  if(stat){stat.className='sendstat busy';stat.textContent='Sending to sheet…';}
+  const payload={
+    tripTicket:t.number, date:f.date||fmtDate(c.created), drop:c.undelivered?'':(seq||''),
+    si:f.si||'', doc:f.doc||'', amount:f.amt||'', customer:f.cust||'', phone:f.phone||'',
+    arrival:c.proof.arr?fmtTime(c.proof.arr.ts):'', received:c.proof.rec?fmtTime(c.proof.rec.ts):'', departure:c.proof.dep?fmtTime(c.proof.dep.ts):'',
+    status:c.undelivered?'UNDELIVERED':'DELIVERED', remarks:c.remarks||'',
+    photos:{
+      arrival:c.proof.arr?c.proof.arr.img:'', received:c.proof.rec?c.proof.rec.img:'', departure:c.proof.dep?c.proof.dep.img:'',
+      salesInvoice:c.si.img||'', deliveryReceipt:c.dr.img||''
+    },
+    rowId:c.id
+  };
+  try{
+    await fetch(SHEET_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+    c.sentAt=Date.now();store.save();
+    if(stat){stat.className='sendstat ok';stat.textContent='✓ Sent to Google Sheet.';}
+  }catch(err){
+    if(stat){stat.className='sendstat bad';stat.textContent='Saved locally, but sending failed. Check connection.';}
+  }
+}
+function updHeader(c){const nm=(c.fields.cust||'').split(',')[0].trim()||'New customer';const ht=$('hbar').querySelector('.htitle');const hs=$('hbar').querySelector('.hsub');if(ht)ht.textContent=nm;if(hs)hs.textContent=c.fields.si?'Invoice '+c.fields.si:'no invoice yet';}
+
+let pendingPick=null;
+function pick(kind,cam){pendingPick={mode:'scan',kind};const fi=$('fileInput');cam?fi.setAttribute('capture','environment'):fi.removeAttribute('capture');fi.value='';fi.click();}
+function pickProof(k){pendingPick={mode:'proof',k};const fi=$('fileInput');fi.setAttribute('capture','environment');fi.value='';fi.click();}
+$('fileInput').addEventListener('change',async e=>{
+  const file=e.target.files[0];if(!file||!pendingPick)return;
+  const t=DB.trips[curTrip];const c=t.customers.find(x=>x.id===curCust);const pk=pendingPick;pendingPick=null;
+  try{
+    if(pk.mode==='proof'){const r=await processPhoto(file,true);c.proof[pk.k]={img:r.dataUrl,ts:r.ts,loc:r.loc};store.save();renderCustDetail();return;}
+    const r=await processPhoto(file,false);const obj=pk.kind==='si'?c.si:c.dr;obj.img=r.dataUrl;obj.done=false;store.save();renderCustDetail();
+    try{const parsed=await aiScan(r.dataUrl,pk.kind);
+      if(pk.kind==='si'){if(parsed.si)c.fields.si=parsed.si;if(parsed.amt)c.fields.amt=parsed.amt.startsWith('₱')?parsed.amt:'₱'+parsed.amt;if(parsed.cust)c.fields.cust=parsed.cust;}
+      else{if(parsed.doc)c.fields.doc=parsed.doc;if(parsed.phone)c.fields.phone=parsed.phone;}
+      obj.done=true;store.save();renderCustDetail();updHeader(c);
+    }catch(err){const e2=$('scanErr');if(e2)e2.innerHTML=`<div class="err">Photo saved, but I couldn't read the numbers. Type the fields in, or retake in better light.</div>`;}
+  }catch(err){const e2=$('scanErr');if(e2)e2.innerHTML=`<div class="err">That photo didn't load (${err.message}). Try again, or use Upload instead of Camera.</div>`;}
+});
+
+function buildOut(c){
+  const t=DB.trips[curTrip];const f=c.fields;const seq=seqOf(t,c.id);
+  const txt=[`Trip Ticket #: ${t.number}`,`Date: ${f.date||fmtDate(c.created)}`,`Drop #: ${seq||''}`,`S.I #: ${f.si||''}`,`Doc #: ${f.doc||''}`,`Amount: ${f.amt||''}`,`Customer: ${f.cust||''}`,`Arrival: ${c.proof.arr?fmtTime(c.proof.arr.ts):''}`,`Time Received: ${c.proof.rec?fmtTime(c.proof.rec.ts):''}`,`Departure: ${c.proof.dep?fmtTime(c.proof.dep.ts):''}`].join('\n');
+  const o=$('out');if(o)o.textContent=txt;return txt;
+}
+async function copyOut(c){const txt=buildOut(c);try{await navigator.clipboard.writeText(txt)}catch(e){const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();}const b=$('bCopy');b.classList.add('done');b.textContent='✓ Copied';setTimeout(()=>{b.classList.remove('done');b.textContent='📋 Copy text'},1600);}
+function smsOut(c){const phone=(c.fields.phone||'').replace(/[^0-9+]/g,'');const body=encodeURIComponent(buildOut(c));window.location.href=phone?`sms:${phone}?body=${body}`:`sms:?body=${body}`;}
+function exportCust(c){
+  const t=DB.trips[curTrip];const f=c.fields;const L={arr:'Arrival',rec:'Received',dep:'Departure'};
+  const photos=['arr','rec','dep'].map(k=>c.proof[k]?`<div style="margin:8px 0"><b>${L[k]}</b> — ${fmtTime(c.proof[k].ts)} ${c.proof[k].loc?'('+c.proof[k].loc.lat.toFixed(5)+', '+c.proof[k].loc.lng.toFixed(5)+')':''}<br><img src="${c.proof[k].img}" style="max-width:100%;border-radius:8px"></div>`:`<div style="margin:8px 0;color:#a23a1c"><b>${L[k]}</b> — missing</div>`).join('');
+  const docs=[c.si.img?`<div style="margin:8px 0"><b>Sales Invoice</b><br><img src="${c.si.img}" style="max-width:100%;border-radius:8px"></div>`:'',c.dr.img?`<div style="margin:8px 0"><b>Delivery Receipt</b><br><img src="${c.dr.img}" style="max-width:100%;border-radius:8px"></div>`:''].join('');
+  const nm=(f.cust||'Customer').split(',')[0].trim();
+  const html=`<!doctype html><meta charset=utf-8><title>${t.number} ${nm}</title><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:16px;color:#1b1a17"><h2>${t.number} — ${nm}</h2><pre style="background:#f5f2ea;padding:12px;border-radius:8px;white-space:pre-wrap">${buildOut(c)}</pre><h3>Proof photos</h3>${photos}<h3>Documents</h3>${docs}</body>`;
+  const blob=new Blob([html],{type:'text/html'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${t.number}_${nm.replace(/\s+/g,'')}.html`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+function delCust(c){if(!confirm('Delete this customer stop? This cannot be undone.'))return;const t=DB.trips[curTrip];t.customers=t.customers.filter(x=>x.id!==c.id);store.save();openTrip(curTrip);}
+
+function openModal(){$('modal').classList.add('on');$('mInput').value='';setTimeout(()=>$('mInput').focus(),50);}
+function closeModal(){$('modal').classList.remove('on');}
+$('fabHome').onclick=openModal;$('fabTrip').onclick=addCust;$('mCancel').onclick=closeModal;
+$('mOk').onclick=()=>{const num=$('mInput').value.trim();if(!num)return;const id=uid();DB.trips[id]={id,number:num,created:Date.now(),customers:[]};store.save();closeModal();openTrip(id);};
+$('mInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('mOk').click();});
+
+Object.assign(DB,store.load());
+goHome();
+
+// register service worker for offline app support (ignored in preview, works when hosted)
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}
+</script>
+</body>
+</html>
